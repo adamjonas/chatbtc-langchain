@@ -83,3 +83,5 @@ If you're stuck after trying all these steps, delete `node_modules`, restart you
 ## Credit
 
 Frontend of this repo is inspired by [langchain-chat-nextjs](https://github.com/zahidkhawaja/langchain-chat-nextjs)
+
+Trigger deploy

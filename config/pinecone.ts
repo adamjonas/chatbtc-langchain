@@ -2,8 +2,13 @@
  * Change the index and namespace to your own
  */
 
-const PINECONE_INDEX_NAME = 'langchainjsfundamentals';
+if (!process.env.PINECONE_INDEX_NAME) {
+    throw new Error('Pinecone index name not set');
+  }
 
-const PINECONE_NAME_SPACE = 'pdf-test'; //namespace is optional for your vectors
+const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
 
-export { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE };
+// const PINECONE_NAME_SPACE = 'pdf-test'; //namespace is optional for your vectors
+
+// export { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE };
+export { PINECONE_INDEX_NAME};
