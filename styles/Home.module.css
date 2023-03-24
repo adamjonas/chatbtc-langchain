@@ -1,9 +1,13 @@
+
 .main {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  margin-block: 1rem;
+  gap: 1rem;
+  padding-inline: 1rem;
 }
 
 .header {
@@ -16,18 +20,18 @@
 
 .cloudform {
   position: relative;
+  width: 100%;
 }
 
 .textarea {
   position: relative;
   resize: none;
-  font-size: 1.1rem;
-  padding: 1rem 2rem 1rem 2rem;
-  width: 75vw;
+  padding: 0.5rem 2rem 0.5rem 1rem;
+  width: 100%;
   border-radius: 0.5rem;
-  border: 1px solid #d9d9e3;
-  background: #ffffff;
-  color: #000;
+  border: var(--textAreaBorder);
+  background: var(--textAreaBg);
+  /* color: #000; */
   outline: none;
 }
 
@@ -47,8 +51,9 @@
 
 .generatebutton {
   position: absolute;
-  top: 0.87rem;
-  right: 1rem;
+  top: 50%;
+  transform: translateY(-60%);
+  right: 0.5rem;
   color: rgb(165, 162, 162);
   background: none;
   padding: 0.3rem;
@@ -95,14 +100,16 @@
 }
 
 .usermessage {
-  background: #ffffff;
+  flex-direction: row-reverse;
+  background: var(--usermessageBoxBg);
   padding: 1.5rem;
-  color: #000;
+  color: var(--usermessageText);
 }
 
 .usermessagewaiting {
+  flex-direction: row-reverse;
   padding: 1.5rem;
-  color: #000;
+  color: var(--usermessageText);
   background: linear-gradient(to left, #07080938, #1a1c2024, #07080936);
   background-size: 200% 200%;
   background-position: -100% 0;
@@ -121,10 +128,13 @@
 }
 
 .apimessage {
-  background: #f9fafb;
-  padding: 1.5rem;
-  color: #000;
+  background: var(--messageBoxBg);
+  padding: 1rem;
+  color: var(--messageText);
   animation: fadein 0.5s;
+}
+.apimessage .boticon {
+  filter: var(--iconColor);
 }
 
 @keyframes fadein {
@@ -140,6 +150,7 @@
 .usermessage,
 .usermessagewaiting {
   display: flex;
+  gap: 1rem;
 }
 
 .markdownanswer {
@@ -168,7 +179,6 @@
 
 .boticon,
 .usericon {
-  margin-right: 1rem;
   border-radius: 0.1rem;
   height: 100%;
 }
@@ -189,14 +199,15 @@
 }
 
 .cloud {
-  width: 75vw;
-  height: 65vh;
+  flex: 1 1 0;
+  width: 100%;
   background: #ffffff;
   border-radius: 0.5rem;
   border: 1px solid #d9d9e3;
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: auto;
 }
 
 .pointsnormal {
@@ -228,16 +239,17 @@
 /* Mobile optimization */
 @media (max-width: 600px) {
   .main {
-    padding: 1rem;
-    max-height: 90vh;
+    font-size: 14px;
+    /* padding: 1rem;
+    max-height: 90vh; */
   }
 
-  .cloud {
+  /* .cloud {
     width: 22rem;
     height: 28rem;
-  }
+  } */
   .textarea {
-    width: 22rem;
+    /* width: 22rem; */
   }
   .topnav {
     border: 1px solid black;
