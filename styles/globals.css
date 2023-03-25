@@ -1,0 +1,30 @@
+:root {
+  /* Your default theme */
+  --messageBoxBg: theme(colors.gray.200);
+  --messageText: black;
+  --usermessageBoxBg: white;
+  --usermessageText: black;
+  --iconColor: invert(81%) sepia(42%) saturate(5022%) hue-rotate(332deg) brightness(102%) contrast(97%);
+  --textAreaBg: #fff;
+  --textAreaBorder: 1px solid #d9d9e3;
+}
+
+html.dark {
+  --messageBoxBg: theme(colors.gray.600);
+  --messageText: white;
+  --usermessageBoxBg: theme(colors.gray.900);
+  --usermessageText: white;
+  --iconColor: invert(89%) sepia(25%) saturate(1310%) hue-rotate(314deg) brightness(102%) contrast(98%);
+  --textAreaBg: #374151;
+  --textAreaBorder: 1px solid #1f2937;
+}
+
+html {
+  height: 100%;
+}
+body {
+  height: 100%;
+}
+#__next {
+  height: 100%;
+}

@@ -1,4 +1,6 @@
 import '@/styles/base.css';
+import '@/styles/globals.css'
+import { ThemeProvider } from 'next-themes';
 import type { AppProps } from 'next/app';
 import { Inter } from 'next/font/google';
 
@@ -9,11 +11,11 @@ const inter = Inter({
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <>
-      <main className={inter.variable}>
+    <ThemeProvider enableSystem={true} attribute='class' >
+      <main className={`${inter.variable} h-full`}>
         <Component {...pageProps} />
       </main>
-    </>
+    </ThemeProvider>
   );
 }
 

@@ -45,6 +45,23 @@ export default function Home() {
     textAreaRef.current?.focus();
   }, []);
 
+  // Auto scroll chat to bottom
+  useEffect(() => {
+    const messageList = messageListRef.current;
+    if (messageList) {
+      messageList.scrollTop = messageList?.scrollHeight;
+    }
+  }, [messageState.messages]);
+
+  useEffect(() => {
+    if (textAreaRef?.current) {
+      const _textarea = textAreaRef.current;
+      console.log(query)
+      const _length = query?.split("\n")?.length;
+      _textarea.rows = _length > 3 ? 3 : (Boolean(_length) && _length) || 1;
+    }
+  }, [query]);
+
   //handle form submission
   async function handleSubmit(e: any) {
     e.preventDefault();
@@ -127,7 +144,9 @@ export default function Home() {
   //prevent empty submissions
   const handleEnter = (e: any) => {
     if (e.key === 'Enter' && query) {
-      handleSubmit(e);
+      if (!e.shiftKey) {
+        handleSubmit(e);
+      }
     } else if (e.key == 'Enter') {
       e.preventDefault();
     }
@@ -151,12 +170,20 @@ export default function Home() {
   return (
     <>
       <Layout>
-        <div className="mx-auto flex flex-col gap-4">
-          <h1 className="text-2xl font-bold leading-[1.1] tracking-tighter text-center">
-            Chat With Bitcoin
-          </h1>
+        <div className="mx-auto w-full max-w-[820px] flex flex-col flex-auto">
+          <div className='flex items-center justify-center gap-2'>
+            <h1 className="text-4xl font-bold text-center">
+              ChatBTC
+            </h1>
+            <Image 
+              src="/bitcoin.svg"
+              alt="bitcoin"
+              width={30}
+              height={30}
+            />
+          </div>
           <main className={styles.main}>
-            <div className={styles.cloud}>
+            <div className={`${styles.cloud} dark:bg-gray-900 dark:border-0 dark:drop-shadow-[0_15px_15px_rgba(255,255,255,0.15)]`}>
               <div ref={messageListRef} className={styles.messagelist}>
                 {chatMessages.map((message, index) => {
                   let icon;
@@ -164,11 +191,11 @@ export default function Home() {
                   if (message.type === 'apiMessage') {
                     icon = (
                       <Image
-                        src="/bot-image.png"
+                        src="/chatbot-svg.svg"
                         alt="AI"
                         width="40"
                         height="40"
-                        className={styles.boticon}
+                        className={`${styles.boticon}`}
                         priority
                       />
                     );
@@ -191,7 +218,7 @@ export default function Home() {
                         : styles.usermessage;
                   }
                   return (
-                    <>
+                    <div key={`chatContainer-${index}`}>
                       <div key={`chatMessage-${index}`} className={className}>
                         {icon}
                         <div className={styles.markdownanswer}>
@@ -227,7 +254,7 @@ export default function Home() {
                           </Accordion>
                         </div>
                       )}
-                    </>
+                    </div>
                   );
                 })}
                 {sourceDocs.length > 0 && (
@@ -252,9 +279,12 @@ export default function Home() {
                 )}
               </div>
             </div>
-            <div className={styles.center}>
+            <div className="relative w-full">
               <div className={styles.cloudform}>
                 <form onSubmit={handleSubmit}>
+                  {/* <div className="flex items-end gap-2">
+
+                  </div> */}
                   <textarea
                     disabled={loading}
                     onKeyDown={handleEnter}
