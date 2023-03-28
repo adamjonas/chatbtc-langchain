@@ -109,7 +109,7 @@
 .usermessagewaiting {
   flex-direction: row-reverse;
   padding: 1.5rem;
-  color: var(--usermessageText);
+  color: orange;
   background: linear-gradient(to left, #07080938, #1a1c2024, #07080936);
   background-size: 200% 200%;
   background-position: -100% 0;
