@@ -3,6 +3,7 @@ import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { makeChain } from '@/utils/makechain';
 import { pinecone } from '@/utils/pinecone-client';
+import { filterStackexchangeQuestions } from '@/utils/filter-helper';
 // import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from '@/config/pinecone';
 import { PINECONE_INDEX_NAME } from '@/config/pinecone';
 
@@ -11,8 +12,6 @@ export default async function handler(
   res: NextApiResponse,
 ) {
   const { question, history } = req.body;
-
-  console.log('question', question);
 
   //only accept post requests
   if (req.method !== 'POST') {
@@ -45,6 +44,12 @@ export default async function handler(
       question: sanitizedQuestion,
       chat_history: history || [],
     });
+
+    // Get filtered source urls
+    const filteredSourceUrls = filterStackexchangeQuestions(response.sourceDocuments);
+
+    // Filter out StackExchange questions
+    const filteredSourceDocs = response.sourceDocuments.filter((doc: any) => filteredSourceUrls.includes(doc.metadata.url))
 
     console.log('response', response);
     res.status(200).json(response);
