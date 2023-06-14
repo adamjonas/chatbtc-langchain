@@ -1,5 +1,5 @@
-import { useTheme } from "next-themes";
-import ColorModeSwitch from "./ColorModeSwitch";
+import { useTheme } from 'next-themes';
+import ColorModeSwitch from './ColorModeSwitch';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -19,9 +19,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
       <div className="container mx-auto h-full">
-        <main className="flex w-full flex-1 flex-col h-full">
-          {children}
-        </main>
+        <main className="flex w-full flex-1 flex-col h-full">{children}</main>
       </div>
     </div>
   );

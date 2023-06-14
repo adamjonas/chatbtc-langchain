@@ -52,8 +52,8 @@ export default function Home() {
   useEffect(() => {
     if (textAreaRef?.current) {
       const _textarea = textAreaRef.current;
-      console.log(query)
-      const _length = query?.split("\n")?.length;
+      console.log(query);
+      const _length = query?.split('\n')?.length;
       _textarea.rows = _length > 3 ? 3 : (Boolean(_length) && _length) || 1;
     }
   }, [query]);
@@ -143,19 +143,14 @@ export default function Home() {
     <>
       <Layout>
         <div className="mx-auto w-full max-w-[820px] flex flex-col flex-auto">
-          <div className='flex items-center justify-center gap-2'>
-            <h1 className="text-4xl font-bold text-center">
-              ChatBTC
-            </h1>
-            <Image
-              src="/bitcoin.svg"
-              alt="bitcoin"
-              width={30}
-              height={30}
-            />
+          <div className="flex items-center justify-center gap-2">
+            <h1 className="text-4xl font-bold text-center">ChatBTC</h1>
+            <Image src="/bitcoin.svg" alt="bitcoin" width={30} height={30} />
           </div>
           <main className={styles.main}>
-            <div className={`${styles.cloud} dark:bg-gray-900 dark:border-0 dark:drop-shadow-[0_15px_15px_rgba(255,255,255,0.15)]`}>
+            <div
+              className={`${styles.cloud} dark:bg-gray-900 dark:border-0 dark:drop-shadow-[0_15px_15px_rgba(255,255,255,0.15)]`}
+            >
               <div ref={messageListRef} className={styles.messagelist}>
                 {messages.map((message, index) => {
                   let icon;
@@ -222,7 +217,10 @@ export default function Home() {
                                       {doc.pageContent}
                                     </ReactMarkdown>
                                     <p className="mt-2">
-                                      <b>Source:</b> <a href={doc.metadata.url}>{doc.metadata.url}</a>
+                                      <b>Source:</b>{' '}
+                                      <a href={doc.metadata.url}>
+                                        {doc.metadata.url}
+                                      </a>
                                     </p>
                                   </AccordionContent>
                                 </AccordionItem>

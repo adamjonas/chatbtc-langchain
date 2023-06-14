@@ -41,21 +41,26 @@ export default async function handler(
     );
 
     //create chain
-    const chain = makeChain(vectorStore);
-    //Ask a question using chat history
-    const response = await chain.call({
-      question: sanitizedQuestion,
-      chat_history: history || [],
-    });
+    // const chain = await makeChain(vectorStore, history, question);
+    // // Ask a question using chat history
+    // const response = await chain.call({
+    //   question: sanitizedQuestion,
+    //   chat_history: history || [],
+    // });
 
-    // FIXME:- How to make this work?
+    const response = await makeChain(vectorStore, history, question)
     // Get filtered source urls
-    const filteredSourceUrls = filterStackexchangeQuestions(response.sourceDocuments);
+    const filteredSourceUrls = filterStackexchangeQuestions(
+      response.sourceDocuments,
+    );
 
     // Filter out StackExchange questions
-    const filteredSourceDocs = response.sourceDocuments.filter((doc: any) => filteredSourceUrls.includes(doc.metadata.url))
-
+    const filteredSourceDocs = response.sourceDocuments.filter((doc: any) =>
+      filteredSourceUrls.includes(doc.metadata.url),
+    );
+    // FIXME:- BAD resource linking.
     console.log('response', response);
+    // File out corresponding responses
     res.status(200).json(response);
   } catch (error: any) {
     console.log('error', error);
