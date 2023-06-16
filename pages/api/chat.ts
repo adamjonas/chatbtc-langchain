@@ -48,22 +48,19 @@ export default async function handler(
           raw_question: sanitizedQuestion,
           chat_history: truncate_chat_history(history, 4000) || [],
         });
-        //
-        // // Get filtered source urls
-        // const filteredSourceUrls = filterStackexchangeQuestions(
-        //   response.sourceDocuments,
-        // );
-        //
-        // // Filter out StackExchange questions
-        // const filteredSourceDocs = response.sourceDocuments.filter((doc: any) =>
-        //   filteredSourceUrls.includes(doc.metadata.url),
-        // );
-        //
-        // console.log('response', response);
-        // TODO:- filter out the responses using filterSourceDocs contained in the
-        //  respective source questions
+        // Get filtered source urls
+        const filteredSourceUrls = filterStackexchangeQuestions(
+          response.sourceDocuments,
+        );
+        // Filter out StackExchange questions
+        const filteredSourceDocs = response.sourceDocuments.filter((doc: any) =>
+          filteredSourceUrls.includes(doc.metadata.url),
+        );
+        const {sourceDocuments, ...rest} = response
+        const filteredResponse = {sourceDocuments: filteredSourceDocs, ...rest}
 
-        res.status(200).json(response);
+        console.log('response', response);
+        res.status(200).json(filteredResponse);
         break
       }
       catch (e: any) {
