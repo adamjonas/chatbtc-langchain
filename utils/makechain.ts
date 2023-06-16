@@ -1,11 +1,12 @@
 import { OpenAI } from 'langchain/llms/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
-import { ConversationalRetrievalQAChain } from 'langchain/chains';
+import { LLMChain, loadQAMapReduceChain, loadQARefineChain, RetrievalQAChain, SequentialChain } from 'langchain/chains';
+import { PromptTemplate } from 'langchain/prompts';
 
-const CONDENSE_PROMPT = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question. The output should NEVER exceed 500 words.
+const CONDENSE_PROMPT = `Given the following conversation and a follow up question, rephrase the follow up question in context of bitcoin to be a standalone question.
 Chat History:
 {chat_history}
-Follow Up Input: {question}
+Follow Up Input: {raw_question}
 Standalone question:`;
 
 const QA_PROMPT = `You are a helpful AI assistant. Use the following pieces of context to answer the question at the end.
@@ -19,25 +20,35 @@ Helpful answer in markdown:`;
 
 export const makeChain = async (
   vectorstore: PineconeStore,
-  k: number
 ) => {
-  // Use `k` to specify the number of vectors required
-  const model = new OpenAI({
+  const summary_model = new OpenAI({
     temperature: 0, // increase temperature to get more creative answers
     modelName: 'gpt-3.5-turbo', //change this to gpt-4 if you have access
   });
 
-  return ConversationalRetrievalQAChain.fromLLM(
-    model,
-    vectorstore.asRetriever(),
-    {
-      qaTemplate: QA_PROMPT,
-      questionGeneratorChainOptions: {
-        llm: model,
-        template: CONDENSE_PROMPT,
-      },
-      returnSourceDocuments: true, //The number of source documents returned is 4 by default
-      verbose: true,
-    },
-  );
+  const conversation_model = new OpenAI({
+    temperature: 0, // increase temperature to get more creative answers
+    modelName: 'gpt-3.5-turbo', //change this to gpt-4 if you have access
+  });
+
+  // Summary Model
+  const summary_template = new PromptTemplate({
+    template: CONDENSE_PROMPT,
+    inputVariables: ['chat_history', 'raw_question'],
+  });
+  const summary_chain = new LLMChain({ llm: summary_model, prompt: summary_template, outputKey: 'question' });
+
+  const conversation_chain = new RetrievalQAChain({
+    combineDocumentsChain: loadQARefineChain(conversation_model),
+    retriever: vectorstore.asRetriever(),
+    returnSourceDocuments: true,
+    inputKey: 'question',
+  });
+
+  return new SequentialChain({
+    chains: [summary_chain, conversation_chain],
+    inputVariables: ['chat_history', 'raw_question'],
+    outputVariables: conversation_chain.outputKeys,
+    verbose: true,
+  });
 };

@@ -28,3 +28,8 @@ export const filterStackexchangeQuestions = (
   }
   return filteredUrls;
 };
+
+export const truncate_chat_history = (chat_history: [string, string][]) => {
+  // FIXME:- Truncate chat_history such that transformed template QA_TEMPLATE is less than 4k tokens.
+  return chat_history
+}

@@ -3,7 +3,7 @@ import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { makeChain } from '@/utils/makechain';
 import { pinecone } from '@/utils/pinecone-client';
-import { filterStackexchangeQuestions } from '@/utils/filter-helper';
+import { filterStackexchangeQuestions, truncate_chat_history } from '@/utils/filter-helper';
 // import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from '@/config/pinecone';
 import { PINECONE_INDEX_NAME } from '@/config/pinecone';
 import { ChainValues } from 'langchain/schema';
@@ -41,26 +41,14 @@ export default async function handler(
       },
     );
 
-    let k = 4;
-    let response: ChainValues;
-    // create chain
-    try {
-      const chain = await makeChain(vectorStore, k);
+    const chain = await makeChain(vectorStore);
 
-      // Ask a question using chat history
-      response = await chain.call({
-        question: sanitizedQuestion,
-        chat_history: history || [],
-      });
-    }
-    catch (error: any) {
-      k--;
-      if (k === 0) {
-        throw error
-      }
-    }
+    // Ask a question using chat history
+    const response = await chain.call({
+      raw_question: sanitizedQuestion,
+      chat_history: truncate_chat_history(history) || [],
+    });
 
-    // const response = await makeChain(vectorStore)
     // Get filtered source urls
     const filteredSourceUrls = filterStackexchangeQuestions(
       response.sourceDocuments,
@@ -70,10 +58,15 @@ export default async function handler(
     const filteredSourceDocs = response.sourceDocuments.filter((doc: any) =>
       filteredSourceUrls.includes(doc.metadata.url),
     );
-    // FIXME:- BAD resource linking.
+
     console.log('response', response);
-    // File out corresponding responses
-    res.status(200).json(response);
+    // TODO:- filter out the responses using filterSourceDocs contained in the
+    //  respective source questions
+
+    const {output_text, ...rest} = response
+    const renamedResponse = {text: output_text, ...rest}
+
+    res.status(200).json(renamedResponse);
   } catch (error: any) {
     console.log('error', error);
     res.status(500).json({ error: error.message || 'Something went wrong' });
