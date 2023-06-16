@@ -6,6 +6,7 @@ import { pinecone } from '@/utils/pinecone-client';
 import { filterStackexchangeQuestions } from '@/utils/filter-helper';
 // import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from '@/config/pinecone';
 import { PINECONE_INDEX_NAME } from '@/config/pinecone';
+import { ChainValues } from 'langchain/schema';
 
 export default async function handler(
   req: NextApiRequest,
@@ -40,15 +41,26 @@ export default async function handler(
       },
     );
 
-    //create chain
-    // const chain = await makeChain(vectorStore, history, question);
-    // // Ask a question using chat history
-    // const response = await chain.call({
-    //   question: sanitizedQuestion,
-    //   chat_history: history || [],
-    // });
+    let k = 4;
+    let response: ChainValues;
+    // create chain
+    try {
+      const chain = await makeChain(vectorStore, k);
 
-    const response = await makeChain(vectorStore, history, question)
+      // Ask a question using chat history
+      response = await chain.call({
+        question: sanitizedQuestion,
+        chat_history: history || [],
+      });
+    }
+    catch (error: any) {
+      k--;
+      if (k === 0) {
+        throw error
+      }
+    }
+
+    // const response = await makeChain(vectorStore)
     // Get filtered source urls
     const filteredSourceUrls = filterStackexchangeQuestions(
       response.sourceDocuments,

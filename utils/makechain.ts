@@ -1,14 +1,6 @@
 import { OpenAI } from 'langchain/llms/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
-import {
-  ConversationalRetrievalQAChain,
-  LLMChain,
-  loadQAMapReduceChain,
-  loadSummarizationChain,
-  MapReduceDocumentsChain,
-  RetrievalQAChain,
-} from 'langchain/chains';
-import { ChatPromptTemplate } from 'langchain/prompts';
+import { ConversationalRetrievalQAChain } from 'langchain/chains';
 
 const CONDENSE_PROMPT = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question. The output should NEVER exceed 500 words.
 Chat History:
@@ -27,52 +19,25 @@ Helpful answer in markdown:`;
 
 export const makeChain = async (
   vectorstore: PineconeStore,
-  history: any,
-  question: String,
+  k: number
 ) => {
+  // Use `k` to specify the number of vectors required
   const model = new OpenAI({
     temperature: 0, // increase temperature to get more creative answers
     modelName: 'gpt-3.5-turbo', //change this to gpt-4 if you have access
-    verbose: true,
   });
 
-  let q;
-  try {
-    const summarization_chain = loadSummarizationChain(model, {
-      type: 'map_reduce',
-    });
-    q = await summarization_chain.call({
-      input_documents: history,
-      question: question,
-      options: { max_tokens: 4000 },
-    });
-  }
-  catch (error: any) {
-    q = question
-  }
-
-  if (q.text === "There is no information or content provided to summarize.") {
-    q.text = question
-  }
-
-  const context_chain = loadQAMapReduceChain(model, {verbose: true})
-  const chain =  await context_chain.call({ input_documents: vectorstore, question: q });
-
-  return chain
-  // const chatPrompt = ChatPromptTemplate.fromPromptMessages()
-  // After this, return the normal LLM output with model.
-
-  // return ConversationalRetrievalQAChain.fromLLM(
-  //   model,
-  //   vectorstore.asRetriever(),
-  //   {
-  //     qaTemplate: QA_PROMPT,
-  //     questionGeneratorChainOptions: {
-  //       llm: model,
-  //       template: CONDENSE_PROMPT,
-  //     },
-  //     returnSourceDocuments: true, //The number of source documents returned is 4 by default
-  //     verbose: true,
-  //   },
-  // );
+  return ConversationalRetrievalQAChain.fromLLM(
+    model,
+    vectorstore.asRetriever(),
+    {
+      qaTemplate: QA_PROMPT,
+      questionGeneratorChainOptions: {
+        llm: model,
+        template: CONDENSE_PROMPT,
+      },
+      returnSourceDocuments: true, //The number of source documents returned is 4 by default
+      verbose: true,
+    },
+  );
 };
