@@ -46,7 +46,7 @@ export default async function handler(
         const chain = await makeChain(vectorStore, k)
         const response = await chain.call({
           raw_question: sanitizedQuestion,
-          chat_history: truncate_chat_history(history) || [],
+          chat_history: truncate_chat_history(history, 4000) || [],
         });
         //
         // // Get filtered source urls
