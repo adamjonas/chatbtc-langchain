@@ -1,60 +1,42 @@
-import { OpenAIChat } from 'langchain/llms';
-import { LLMChain, ChatVectorDBQAChain, loadQAChain } from 'langchain/chains';
-import { PineconeStore } from 'langchain/vectorstores';
-import { PromptTemplate } from 'langchain/prompts';
-import { CallbackManager } from 'langchain/callbacks';
+import { OpenAI } from 'langchain/llms/openai';
+import { PineconeStore } from 'langchain/vectorstores/pinecone';
+import { ConversationalRetrievalQAChain } from 'langchain/chains';
+import { ContextualCompressionRetriever } from 'langchain/retrievers/contextual_compression';
+import { LLMChainExtractor } from 'langchain/retrievers/document_compressors/chain_extract';
 
-const CONDENSE_PROMPT =
-  PromptTemplate.fromTemplate(`Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
-
+const CONDENSE_PROMPT = `Given the following conversation and a follow up question, rephrase the follow up question in context of bitcoin to be a standalone question.
 Chat History:
 {chat_history}
 Follow Up Input: {question}
-Standalone question:`);
+Standalone question:`;
 
-const QA_PROMPT = PromptTemplate.fromTemplate(
-  `You are an AI assistant providing helpful advice. You are given the following extracted parts of a long document and a question. Provide a conversational answer based on the context provided.
-You should only provide hyperlinks that reference the context below. Do NOT make up hyperlinks.
-If you can't find the answer in the context below, just say "Hmm, I'm not sure." Don't try to make up an answer.
+const QA_PROMPT = `You are a helpful AI assistant aimed to provide technical overview and insights on bitcoin, its concepts and its history. Use the following pieces of context to answer the question at the end.
+If you don't know the answer, just say you don't know. DO NOT try to make up an answer.
 If the question is not related to the context, politely respond that you are tuned to only answer questions that are related to the context.
 
-Question: {question}
-=========
 {context}
-=========
-Answer in Markdown:`,
-);
 
-export const makeChain = (
-  vectorstore: PineconeStore,
-  onTokenStream?: (token: string) => void,
-) => {
-  const questionGenerator = new LLMChain({
-    llm: new OpenAIChat({ temperature: 0 }),
-    prompt: CONDENSE_PROMPT,
+Question: {question}
+Helpful answer in markdown:`;
+
+export const makeChain = (vectorstore: PineconeStore, k: number) => {
+  const model = new OpenAI({
+    temperature: 0,
+    modelName: 'gpt-3.5-turbo',
   });
-  const docChain = loadQAChain(
-    new OpenAIChat({
-      temperature: 0,
-      modelName: 'gpt-3.5-turbo', //change this to older versions (e.g. gpt-3.5-turbo) if you don't have access to gpt-4
-      streaming: Boolean(onTokenStream),
-      callbackManager: onTokenStream
-        ? CallbackManager.fromHandlers({
-            async handleLLMNewToken(token) {
-              onTokenStream(token);
-              console.log(token);
-            },
-          })
-        : undefined,
-    }),
-    { prompt: QA_PROMPT },
-  );
+  const baseCompressor = LLMChainExtractor.fromLLM(model);
+  const retriever = new ContextualCompressionRetriever({
+    baseCompressor,
+    baseRetriever: vectorstore.asRetriever(k),
+  });
 
-  return new ChatVectorDBQAChain({
-    vectorstore,
-    combineDocumentsChain: docChain,
-    questionGeneratorChain: questionGenerator,
-    returnSourceDocuments: true,
-    k: 3, //number of source documents to return
+  return ConversationalRetrievalQAChain.fromLLM(model, retriever, {
+    qaTemplate: QA_PROMPT,
+    questionGeneratorChainOptions: {
+      llm: model,
+      template: CONDENSE_PROMPT,
+    },
+    returnSourceDocuments: true, //The number of source documents returned is 4 by default
+    verbose: true,
   });
 };
