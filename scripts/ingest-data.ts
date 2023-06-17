@@ -38,7 +38,6 @@ export const run = async () => {
     //embed the PDF documents
     await PineconeStore.fromDocuments(docs, embeddings, {
       pineconeIndex: index,
-      namespace: PINECONE_NAME_SPACE,
       textKey: 'text',
     });
   } catch (error) {
