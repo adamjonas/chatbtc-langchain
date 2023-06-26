@@ -61,9 +61,13 @@ export default async function handler(
         //   ...rest,
         // };
 
-        const { text, ...rest } = response;
+        const { text, sourceDocuments, ...rest } = response;
+        const urlList = sourceDocuments.map(
+          (doc: any, index: number) => `[${index + 1}] ${doc.url}`,
+        );
+        const newText = `${text}\n${urlList.join('\n')}`;
 
-        res.status(200).json(text);
+        res.status(200).json(newText);
         break;
       } catch (e: any) {
         console.log('Error with k: ', k, ' :error: ', e.message);
