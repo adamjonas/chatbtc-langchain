@@ -36,7 +36,7 @@ export const makeChain = (vectorstore: PineconeStore, k: number) => {
       llm: model,
       template: CONDENSE_PROMPT,
     },
-    returnSourceDocuments: true, //The number of source documents returned is 4 by default
+    // returnSourceDocuments: true, //The number of source documents returned is 4 by default
     verbose: true,
   });
 };

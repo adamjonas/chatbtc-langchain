@@ -47,21 +47,27 @@ export default async function handler(
           question: sanitizedQuestion,
           chat_history: truncate_chat_history(history, 4000) || [],
         });
-        // Get filtered source urls
-        const filteredSourceUrls = filterStackexchangeQuestions(
-          response.sourceDocuments,
-        );
-        // Filter out StackExchange questions
-        const filteredSourceDocs = response.sourceDocuments.filter((doc: any) =>
-          filteredSourceUrls.includes(doc.metadata.url),
-        );
-        const { sourceDocuments, ...rest } = response;
-        const filteredResponse = {
-          sourceDocuments: filteredSourceDocs,
-          ...rest,
-        };
+        // // Get filtered source urls
+        // const filteredSourceUrls = filterStackexchangeQuestions(
+        //   response.sourceDocuments,
+        // );
+        // // Filter out StackExchange questions
+        // const filteredSourceDocs = response.sourceDocuments.filter((doc: any) =>
+        //   filteredSourceUrls.includes(doc.metadata.url),
+        // );
+        // const { sourceDocuments, ...rest } = response;
+        // const filteredResponse = {
+        //   sourceDocuments: filteredSourceDocs,
+        //   ...rest,
+        // };
 
-        res.status(200).json(filteredResponse);
+        const { text, sourceDocuments, ...rest } = response;
+        const urlList = sourceDocuments.map(
+          (doc: any, index: number) => `[${index + 1}] ${doc.url}`,
+        );
+        const newText = `${text}\n${urlList.join('\n')}`;
+
+        res.status(200).json(newText);
         break;
       } catch (e: any) {
         console.log('Error with k: ', k, ' :error: ', e.message);
