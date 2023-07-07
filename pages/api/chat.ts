@@ -2,12 +2,12 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { makeChain } from '@/utils/makechain';
-import { pinecone } from '@/utils/pinecone-client';
+import { initPinecone } from '@/utils/pinecone-client';
+import { io } from './socket';
 import {
   filterStackexchangeQuestions,
   truncate_chat_history,
 } from '@/utils/filter-helper';
-import { PINECONE_INDEX_NAME } from '@/config/pinecone';
 
 export default async function handler(
   req: NextApiRequest,
@@ -20,7 +20,6 @@ export default async function handler(
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
-
   if (!question) {
     return res.status(400).json({ message: 'No question in the request' });
   }
@@ -28,25 +27,20 @@ export default async function handler(
   const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
 
   try {
-    const index = pinecone.Index(PINECONE_INDEX_NAME)!;
 
-    /* create vectorstore*/
-    const vectorStore = await PineconeStore.fromExistingIndex(
-      new OpenAIEmbeddings({}),
-      {
-        pineconeIndex: index,
-        textKey: 'text',
-        //namespace: PINECONE_NAME_SPACE, // optional
-      },
-    );
+    const { pinecone, index, vectorStore } = await initPinecone();
+
     let k = 4;
     while (1) {
       try {
-        const chain = makeChain(vectorStore, k);
+        //@ts-ignore
+        const chain = makeChain(vectorStore, k, res.socket.server.io);
         const response = await chain.call({
           question: sanitizedQuestion,
           chat_history: truncate_chat_history(history, 4000) || [],
+          maxTokens: 4097,
         });
+        console.log('RESPONSE', response.answer)
         // Get filtered source urls
         const filteredSourceUrls = filterStackexchangeQuestions(
           response.sourceDocuments,
