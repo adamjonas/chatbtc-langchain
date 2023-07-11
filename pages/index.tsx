@@ -1,45 +1,86 @@
-import { useRef, useState, useEffect } from 'react';
-import Layout from '@/components/layout';
-import styles from '@/styles/Home.module.css';
-import { Message } from '@/types/chat';
-import Image from 'next/image';
-import ReactMarkdown from 'react-markdown';
-import LoadingDots from '@/components/ui/LoadingDots';
-import { Document } from 'langchain/document';
+import Head from 'next/head';
+import { Inter } from '@next/font/google';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+  Box,
+  Container,
+  Flex,
+  Heading,
+  IconButton,
+  Textarea,
+} from '@chakra-ui/react';
+import { BitcoinIcon, SendIcon } from '@/chakra/custom-chakra-icons';
+import { isMobile } from 'react-device-detect';
+import MessageBox, { Message } from '@/components/message/message';
+import { defaultErrorMessage } from '@/config/error-config';
+import { v4 as uuidv4 } from 'uuid';
+import BackgroundHelper from '@/components/background/BackgroundHelper';
+
+const inter = Inter({ subsets: ['latin'] });
+const initialStream: Message = {
+  type: 'apiStream',
+  message: '',
+  uniqueId: '',
+};
+const matchFinalWithLinks = /(^\[\d+\]:\shttps:\/\/)/gm;
+interface RatingProps {
+  messageId: string;
+  rateAnswer: (messageId: string, value: number) => void;
+}
+
+interface FeedbackStatus {
+  [messageId: string]: 'submitted' | undefined;
+}
+
+function formatDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so we need to add 1
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
 
 export default function Home() {
-  const [query, setQuery] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [messageState, setMessageState] = useState<{
-    messages: Message[];
-    pending?: string;
-    history: [string, string][];
-    pendingSourceDocs?: Document[];
-  }>({
-    messages: [
-      {
-        message: 'Hi, what would you like to learn about bitcoin?',
-        type: 'apiMessage',
-      },
-    ],
-    history: [],
-  });
-
-  const { messages, history } = messageState;
+  const [userInput, setUserInput] = useState('');
+  const [history, setHistory] = useState<[string, string][]>([]);
+  const [loading, setLoading] = useState(false);
+  const [streamLoading, setStreamLoading] = useState(false);
+  const [streamData, setStreamData] = useState<Message>(initialStream);
+  const [typedMessage, setTypedMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      message: 'Hi there! How can I help?',
+      type: 'apiMessage',
+      uniqueId: '',
+    },
+  ]);
 
   const messageListRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    textAreaRef.current?.focus();
-  }, []);
+  const idleBackground =
+    !userInput.trim() && messages.length === 1 && loading === false;
+
+  // add typing effect
+  const addTypingEffect = async (
+    message: string,
+    callback: (typedText: string) => void,
+  ) => {
+    setTypedMessage('');
+
+    let typedText = '';
+    for (const char of message) {
+      typedText += char;
+      setTypedMessage(typedText);
+      await new Promise((resolve) => setTimeout(resolve, 15)); // Adjust 15ms to change typing speed
+    }
+    // Call the callback function to update the message in the state
+    callback(typedText);
+  };
 
   // Auto scroll chat to bottom
   useEffect(() => {
@@ -47,255 +88,316 @@ export default function Home() {
     if (messageList) {
       messageList.scrollTop = messageList?.scrollHeight;
     }
-  }, [messageState.messages]);
+  }, [messages]);
+
+  // Focus on text field on load
+  useEffect(() => {
+    textAreaRef.current && textAreaRef.current.focus();
+  }, []);
 
   useEffect(() => {
     if (textAreaRef?.current) {
       const _textarea = textAreaRef.current;
-      console.log(query)
-      const _length = query?.split("\n")?.length;
+      const _length = userInput?.split('\n')?.length;
       _textarea.rows = _length > 3 ? 3 : (Boolean(_length) && _length) || 1;
     }
-  }, [query]);
+  }, [userInput]);
 
-  //handle form submission
-  async function handleSubmit(e: any) {
-    e.preventDefault();
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserInput(e.target.value);
+  };
 
-    setError(null);
+  const updateMessages = async (finalText: string, uuid: string) => {
+    // Call the addTypingEffect function to add a typing effect to the finalText
+    await addTypingEffect(finalText, (messageWithTypingEffect: string) => {
+      setStreamLoading(false);
+      setStreamData(initialStream);
 
-    if (!query) {
-      alert('Please input a question');
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          message: messageWithTypingEffect,
+          type: 'apiMessage',
+          uniqueId: uuid,
+        },
+      ]);
+    });
+  };
+
+  const addDocumentToMongoDB = async (payload: any) => {
+    const response = await fetch('/api/mongo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const { data } = await response.json();
+    return data;
+  };
+  const getDocumentInMongoDB = async (uniqueId: string) => {
+    const response = await fetch('/api/mongo?unique=' + uniqueId, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const { data } = await response.json();
+    return data;
+  };
+
+  const updateDocumentInMongoDB = async (uniqueId: string, payload: any) => {
+    const response = await fetch('/api/mongo?unique=' + uniqueId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const { data } = await response.json();
+    return data;
+  };
+
+  const fetchResult = async (query: string) => {
+    setHistory((prevState: [string, string][]) => [...prevState, [query, '']]);
+
+    return await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: query,
+        history,
+      }),
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent, prompt?: string) => {
+    if (e) {
+      e.preventDefault();
+    }
+    const query = prompt ? prompt.trim() : userInput.trim();
+    if (query === '') {
       return;
     }
-
-    const question = query.trim();
-
-    setMessageState((state) => ({
-      ...state,
-      messages: [
-        ...state.messages,
-        {
-          type: 'userMessage',
-          message: question,
-        },
-      ],
-    }));
-
+    // Reset the typedMessage state
+    setTypedMessage('');
+    let uuid = uuidv4();
     setLoading(true);
-    setQuery('');
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { message: query, type: 'userMessage', uniqueId: uuid },
+    ]);
+    setUserInput('');
+
+    const errMessage = 'Something went wrong. Try again later';
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question,
-          history,
-        }),
+      const response: Response = await fetchResult(query);
+      if (!response.ok) {
+        throw new Error(errMessage);
+      }
+      const data = response.body;
+      const reader = data?.getReader();
+      let done = false;
+      let finalAnswerWithLinks = '';
+
+      if (!reader) throw new Error(errMessage);
+      const decoder = new TextDecoder();
+      setLoading(false);
+      setStreamLoading(true);
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunk = decoder.decode(value);
+        if (matchFinalWithLinks.test(chunk)) {
+          finalAnswerWithLinks = chunk;
+        } else {
+          finalAnswerWithLinks += chunk; // Store the plain text in finalAnswerWithLinks
+          setStreamData((data) => {
+            const _updatedData = { ...data };
+            _updatedData.message += chunk;
+            return _updatedData;
+          });
+        }
+      }
+
+      let question = userInput;
+      let answer = finalAnswerWithLinks;
+      let uniqueIDD = uuid;
+      let dateString = '15-06-2023'; // DD-MM-YY
+      let timeString = '00:00:00';
+
+      const dateTimeString =
+        dateString.split('-').reverse().join('-') + 'T' + timeString;
+      const dateObject = new Date(dateTimeString);
+      const formattedDateTime = formatDate(dateObject);
+
+      // let date_ob = new Date();
+      let payload = {
+        uniqueId: uniqueIDD,
+        question: question,
+        answer: answer,
+        rating: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        releasedAt: formattedDateTime,
+      };
+      setHistory((prevState: [string, string][]) => {
+        const updatedHistory = [...prevState];
+        if (updatedHistory.length > 0) {
+          const lastEntry = updatedHistory[updatedHistory.length - 1];
+          lastEntry[1] = answer;
+        }
+        return updatedHistory;
       });
-      const data = await response.json();
-      console.log('data', data);
+      //mongodb database
+      // await addDocumentToMongoDB(payload);
 
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setMessageState((state) => ({
-          ...state,
-          messages: [
-            ...state.messages,
-            {
-              type: 'apiMessage',
-              message: data.text,
-              sourceDocs: data.sourceDocuments,
-            },
-          ],
-          history: [...state.history, [question, data.text]],
-        }));
-      }
-      console.log('messageState', messageState);
+      //supabase database
 
-      setLoading(false);
-
-      //scroll to bottom
-      messageListRef.current?.scrollTo(0, messageListRef.current.scrollHeight);
-    } catch (error) {
-      setLoading(false);
-      setError('An error occurred while fetching the data. Please try again.');
-      console.log('error', error);
+      await updateMessages(finalAnswerWithLinks, uuid);
+    } catch (err: any) {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          message: err?.message ?? defaultErrorMessage,
+          type: 'errorMessage',
+          uniqueId: uuidv4(),
+        },
+      ]);
     }
-  }
+    setLoading(false);
+  };
 
-  //prevent empty submissions
-  const handleEnter = (e: any) => {
-    if (e.key === 'Enter' && query) {
-      if (!e.shiftKey) {
-        handleSubmit(e);
+  const promptChat = async (e: any, prompt: string) => {
+    handleSubmit(e, prompt);
+  };
+
+  // Prevent blank submissions and allow for multiline input
+  const handleEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      if (isMobile) {
+        e.preventDefault();
+      } else {
+        if (!e.shiftKey && userInput) {
+          handleSubmit(e);
+        }
       }
-    } else if (e.key == 'Enter') {
-      e.preventDefault();
     }
   };
 
   return (
     <>
-      <Layout>
-        <div className="mx-auto w-full max-w-[820px] flex flex-col flex-auto">
-          <div className='flex items-center justify-center gap-2'>
-            <h1 className="text-4xl font-bold text-center">
+      <Head>
+        <title>Chat BTC</title>
+        <meta name="description" content="Your technical bitcoin copilot" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/bitcoin.svg" />
+      </Head>
+      <Box position="relative" overflow="hidden" w="full" h="full">
+        <Container
+          display="flex"
+          flexDir="column"
+          alignItems="center"
+          maxW={'1280px'}
+          h="100%"
+          p={4}
+          centerContent
+        >
+          <Flex
+            gap={2}
+            alignItems="center"
+            mt={{ base: 3, md: 8 }}
+            justifyContent="center"
+          >
+            <Heading as="h1" size={{ base: '2xl', md: '3xl' }}>
               ChatBTC
-            </h1>
-            <Image
-              src="/bitcoin.svg"
-              alt="bitcoin"
-              width={30}
-              height={30}
+            </Heading>
+            <BitcoinIcon
+              fontSize={{ base: '4xl', md: '7xl' }}
+              color="orange.400"
             />
-          </div>
-          <main className={styles.main}>
-            <div className={`${styles.cloud} dark:bg-gray-900 dark:border-0 dark:drop-shadow-[0_15px_15px_rgba(255,255,255,0.15)]`}>
-              <div ref={messageListRef} className={styles.messagelist}>
-                {messages.map((message, index) => {
-                  let icon;
-                  let className;
-                  if (message.type === 'apiMessage') {
-                    icon = (
-                      <Image
-                        key={index}
-                        src="/chatbot-svg.svg"
-                        alt="AI"
-                        width="40"
-                        height="40"
-                        className={`${styles.boticon}`}
-                        priority
-                      />
-                    );
-                    className = styles.apimessage;
-                  } else {
-                    icon = (
-                      <Image
-                        key={index}
-                        src="/usericon.png"
-                        alt="Me"
-                        width="30"
-                        height="30"
-                        className={styles.usericon}
-                        priority
-                      />
-                    );
-                    // The latest message sent by the user will be animated while waiting for a response
-                    className =
-                      loading && index === messages.length - 1
-                        ? styles.usermessagewaiting
-                        : styles.usermessage;
-                  }
-                  return (
-                    <div key={`chatContainer-${index}`}>
-                      <div key={`chatMessage-${index}`} className={className}>
-                        {icon}
-                        <div className={styles.markdownanswer}>
-                          <ReactMarkdown linkTarget="_blank">
-                            {message.message}
-                          </ReactMarkdown>
+          </Flex>
+          <Flex
+            id="main"
+            width="full"
+            h="full"
+            maxW="820px"
+            my={5}
+            flexDir="column"
+            gap="4"
+            justifyContent="space-around"
+            overflow="auto"
+          >
+            <Box
+              ref={messageListRef}
+              w="full"
+              bgColor="gray.900"
+              borderRadius="md"
+              flex="1 1 0%"
+              overflow="auto"
+              maxH="100lvh"
+            >
+              {idleBackground ? (
+                <BackgroundHelper promptChat={promptChat} />
+              ) : (
+                <>
+                  {messages.length &&
+                    messages.map((message, index) => {
+                      const isApiMessage = message.type === 'apiMessage';
+                      const greetMsg =
+                        message.message === 'Hi there! How can I help?';
+                      return (
+                        <div key={index}>
+                          <MessageBox content={message} />
+                          {isApiMessage && !greetMsg}
                         </div>
-                      </div>
-                      {message.sourceDocs && (
-                        <div
-                          className="p-5"
-                          key={`sourceDocsAccordion-${index}`}
-                        >
-                          <Accordion
-                            type="single"
-                            collapsible
-                            className="flex-col"
-                          >
-                            {message.sourceDocs.map((doc, index) => (
-                              <div key={`messageSourceDocs-${index}`}>
-                                <AccordionItem value={`item-${index}`}>
-                                  <AccordionTrigger>
-                                    <h3>Source {index + 1}</h3>
-                                  </AccordionTrigger>
-                                  <AccordionContent>
-                                    <ReactMarkdown linkTarget="_blank">
-                                      {doc.pageContent}
-                                    </ReactMarkdown>
-                                    <p className="mt-2">
-                                      <b>Source:</b> <a href={doc.metadata.url}>{doc.metadata.url}</a>
-                                    </p>
-                                  </AccordionContent>
-                                </AccordionItem>
-                              </div>
-                            ))}
-                          </Accordion>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="relative w-full">
-              <div className={styles.cloudform}>
-                <form onSubmit={handleSubmit}>
-                  {/* <div className="flex items-end gap-2">
-
-                  </div> */}
-                  <textarea
-                    disabled={loading}
-                    onKeyDown={handleEnter}
+                      );
+                    })}
+                  {(loading || streamLoading) && (
+                    <MessageBox
+                      // messageId={uuidv4()}
+                      content={{
+                        message: streamLoading
+                          ? typedMessage
+                          : streamData.message,
+                        type: 'apiStream',
+                        uniqueId: uuidv4(),
+                      }}
+                      loading={loading}
+                      streamLoading={streamLoading}
+                    />
+                  )}
+                </>
+              )}
+            </Box>
+            {/* <Box w="100%" maxW="100%" flex={{base: "0 0 50px", md:"0 0 100px"}} mb={{base: "70px", md: "70px"}}> */}
+            <Box w="100%">
+              <form onSubmit={handleSubmit}>
+                <Flex gap={2} alignItems="flex-end">
+                  <Textarea
                     ref={textAreaRef}
-                    autoFocus={false}
-                    rows={1}
-                    maxLength={512}
+                    placeholder="Type your question here"
+                    name=""
                     id="userInput"
-                    name="userInput"
-                    placeholder={
-                      loading
-                        ? 'Waiting for response...'
-                        : 'What do you want to learn today?'
-                    }
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className={styles.textarea}
-                  />
-                  <button
-                    type="submit"
+                    rows={1}
+                    resize="none"
                     disabled={loading}
-                    className={styles.generatebutton}
-                  >
-                    {loading ? (
-                      <div className={styles.loadingwheel}>
-                        <LoadingDots color="#000" />
-                      </div>
-                    ) : (
-                      // Send icon SVG in input field
-                      <svg
-                        viewBox="0 0 20 20"
-                        className={styles.svgicon}
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path>
-                      </svg>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
-            {error && (
-              <div className="border border-red-400 rounded-md p-4">
-                <p className="text-red-500">{error}</p>
-              </div>
-            )}
-          </main>
-        </div>
-        {/* <footer className="m-auto p-4">
-          <a href="https://twitter.com/mayowaoshin">
-            Powered by LangChainAI. Demo built by Mayo (Twitter: @mayowaoshin).
-          </a>
-        </footer> */}
-      </Layout>
+                    value={userInput}
+                    onChange={handleInputChange}
+                    bg="gray.700"
+                    flexGrow={1}
+                    flexShrink={1}
+                    onKeyDown={handleEnter}
+                  />
+                  <IconButton
+                    isLoading={loading}
+                    aria-label="send chat"
+                    icon={<SendIcon />}
+                    type="submit"
+                  />
+                </Flex>
+              </form>
+            </Box>
+          </Flex>
+        </Container>
+      </Box>
     </>
   );
 }
