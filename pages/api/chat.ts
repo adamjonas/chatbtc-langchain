@@ -1,13 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { PineconeStore } from 'langchain/vectorstores/pinecone';
+import { Client } from "@elastic/elasticsearch";
+import {
+  ElasticClientArgs,
+  ElasticVectorSearch,
+} from "langchain/vectorstores/elasticsearch";
 import { makeChain } from '@/utils/makechain';
-import { pinecone } from '@/utils/pinecone-client';
 import {
   filterStackexchangeQuestions,
   truncate_chat_history,
 } from '@/utils/filter-helper';
-import { PINECONE_INDEX_NAME } from '@/config/pinecone';
+import {ES_CLOUD_ID, ES_INDEX_NAME, ES_API_KEY} from "@/config/elasticsearch";
 
 export default async function handler(
   req: NextApiRequest,
@@ -28,17 +31,16 @@ export default async function handler(
   const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
 
   try {
-    const index = pinecone.Index(PINECONE_INDEX_NAME)!;
+    const clientArgs : ElasticClientArgs = {
+      client: new Client({
+        cloud: {id: ES_CLOUD_ID},
+        auth: {apiKey: ES_API_KEY},
+      }),
+      indexName: ES_INDEX_NAME,
+    };
+    // FIXME:- might need to specify ES engine
+    const vectorStore = new ElasticVectorSearch(new OpenAIEmbeddings({}), clientArgs);
 
-    /* create vectorstore*/
-    const vectorStore = await PineconeStore.fromExistingIndex(
-      new OpenAIEmbeddings({}),
-      {
-        pineconeIndex: index,
-        textKey: 'text',
-        //namespace: PINECONE_NAME_SPACE, // optional
-      },
-    );
     let k = 4;
     while (1) {
       try {

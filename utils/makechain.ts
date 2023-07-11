@@ -1,8 +1,8 @@
 import { OpenAI } from 'langchain/llms/openai';
-import { PineconeStore } from 'langchain/vectorstores/pinecone';
 import { ConversationalRetrievalQAChain } from 'langchain/chains';
 import { ContextualCompressionRetriever } from 'langchain/retrievers/contextual_compression';
 import { LLMChainExtractor } from 'langchain/retrievers/document_compressors/chain_extract';
+import { ElasticVectorSearch } from 'langchain/vectorstores/elasticsearch';
 
 const CONDENSE_PROMPT = `Given the following conversation and a follow up question, rephrase the follow up question in context of bitcoin to be a standalone question.
 Chat History:
@@ -19,7 +19,7 @@ If the question is not related to the context, politely respond that you are tun
 Question: {question}
 Helpful answer in markdown:`;
 
-export const makeChain = (vectorstore: PineconeStore, k: number) => {
+export const makeChain = (vectorstore: ElasticVectorSearch, k: number) => {
   const model = new OpenAI({
     temperature: 0,
     modelName: 'gpt-3.5-turbo',

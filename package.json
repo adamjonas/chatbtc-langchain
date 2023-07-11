@@ -16,18 +16,19 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^2.4.9",
+    "@elastic/elasticsearch": "^7.17.11-patch.1",
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
     "@microsoft/fetch-event-source": "^2.0.1",
+    "@next/font": "13.1.6",
     "@pinecone-database/pinecone": "0.0.14",
     "@radix-ui/react-accordion": "^1.1.1",
-    "@next/font": "13.1.6",
     "clsx": "^1.2.1",
     "dotenv": "^16.0.3",
-    "langchain": "^0.0.95",
+    "framer-motion": "^9.0.2",
+    "langchain": "^0.0.106",
     "lucide-react": "^0.125.0",
     "next": "13.2.3",
-    "framer-motion": "^9.0.2",
     "next-themes": "^0.2.1",
     "pdf-parse": "1.1.1",
     "react": "18.2.0",
@@ -36,8 +37,8 @@
     "react-markdown": "^8.0.5",
     "react-spinners": "^0.13.8",
     "tailwind-merge": "^1.10.0",
-    "uuid": "^9.0.0",
-    "typescript": "^4.9.5"
+    "typescript": "^4.9.5",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^18.14.6",
