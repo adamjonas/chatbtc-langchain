@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, use } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
 import { Message } from '@/types/chat';
@@ -12,11 +12,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import io, { Socket } from 'socket.io-client'
 
 export default function Home() {
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentResponse, setCurrentResponse] = useState<string>('');
   const [messageState, setMessageState] = useState<{
     messages: Message[];
     pending?: string;
@@ -31,6 +33,14 @@ export default function Home() {
     ],
     history: [],
   });
+ 
+  useEffect(() => {
+    const socket = io();
+    socket.on('token-received', (data) => {
+      setCurrentResponse((c) => c + data);
+    });
+    return () => socket.disconnect();
+  }, []);
 
   const { messages, history } = messageState;
 
@@ -52,7 +62,6 @@ export default function Home() {
   useEffect(() => {
     if (textAreaRef?.current) {
       const _textarea = textAreaRef.current;
-      console.log(query)
       const _length = query?.split("\n")?.length;
       _textarea.rows = _length > 3 ? 3 : (Boolean(_length) && _length) || 1;
     }
@@ -79,6 +88,10 @@ export default function Home() {
           type: 'userMessage',
           message: question,
         },
+        {
+          type: 'apiMessage',
+          message: '',
+        }
       ],
     }));
 
@@ -97,32 +110,31 @@ export default function Home() {
         }),
       });
       const data = await response.json();
-      console.log('data', data);
 
       if (data.error) {
         setError(data.error);
       } else {
-        setMessageState((state) => ({
-          ...state,
-          messages: [
-            ...state.messages,
-            {
-              type: 'apiMessage',
-              message: data.text,
-              sourceDocs: data.sourceDocuments,
-            },
-          ],
-          history: [...state.history, [question, data.text]],
-        }));
+        setMessageState((state) => {
+          state.messages[state.messages.length - 1].message = data.text;
+          state.messages[state.messages.length - 1].sourceDocs = data.sourceDocuments;
+          return {
+            ...state,
+            messages: [
+              ...state.messages,
+            ],
+            history: [...state.history, [question, data.text]],
+          } 
+        });
       }
-      console.log('messageState', messageState);
 
       setLoading(false);
+      setCurrentResponse('');
 
       //scroll to bottom
       messageListRef.current?.scrollTo(0, messageListRef.current.scrollHeight);
     } catch (error) {
       setLoading(false);
+      setCurrentResponse('');
       setError('An error occurred while fetching the data. Please try again.');
       console.log('error', error);
     }
@@ -197,7 +209,7 @@ export default function Home() {
                         {icon}
                         <div className={styles.markdownanswer}>
                           <ReactMarkdown linkTarget="_blank">
-                            {message.message}
+                            {loading && index === messages.length - 1 ? currentResponse : message.message}
                           </ReactMarkdown>
                         </div>
                       </div>
